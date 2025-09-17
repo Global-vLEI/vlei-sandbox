@@ -51,7 +51,7 @@ qvi_aid=$(kli aid --name "$qvi_name" --alias qvi)
 
 
 
-### Credentials
+### QVI Credential
 
 schema_qvi_said="EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao" # QVI credential schema
 
@@ -59,12 +59,12 @@ kli oobi resolve --name "$geda_name" --oobi "$qvi_oobi"
 
 kli vc registry incept --name "$geda_name" --alias geda --registry-name vlei
 
-LEI="123"
+LEI_QVI="123"
 kli oobi resolve --name "$geda_name" --oobi "https://portal.globalvlei.com/oobi/$schema_qvi_said"
 kli oobi resolve --name "$qvi_name" --oobi "https://portal.globalvlei.com/oobi/$schema_qvi_said"
-kli vc create --name "$geda_name" --alias geda --registry-name vlei --data "{\"LEI\": \"$LEI\"}" --schema "$schema_qvi_said" --recipient "$qvi_aid"
+kli vc create --name "$geda_name" --alias geda --registry-name vlei --data "{\"LEI\": \"$LEI_QVI\"}" --schema "$schema_qvi_said" --recipient "$qvi_aid"
 
-qvi_credential_said=$(kli vc list --name "$geda_name" --alias "geda" --schema "$schema_qvi_said" --issued --said)
+qvi_credential_said=$(kli vc list --name "$geda_name" --alias geda --schema "$schema_qvi_said" --issued --said)
 
 
 kli ipex grant --name "$geda_name" --alias geda --recipient "$qvi_aid" --said "$qvi_credential_said"
@@ -73,3 +73,106 @@ kli ipex list --name "$qvi_name" --alias qvi --poll
 grant_qvi_said=$(kli ipex list --name "$qvi_name" --alias qvi --type grant --said | tail -n 1)
 kli ipex admit --name "$qvi_name" --alias qvi --said "$grant_qvi_said"
 kli ipex list --name "$geda_name" --alias geda --poll
+
+### Legal Entity
+
+acme_name="acme_${random_suffix}"
+kli init --name "$acme_name" --nopasscode
+
+kli oobi resolve --name "$acme_name" --oobi "$witness_url/oobi/$witness_aid"
+kli incept --name "$acme_name" --wit "$witness_aid" --icount 1 --ncount 1 --isith 1 --nsith 1 --transferable --alias acme --toad 1
+kli ends add  --name "$acme_name" --alias acme --role mailbox --eid "$witness_aid"
+
+
+acme_oobi=$(kli oobi generate --name "$acme_name" --alias acme --role witness | tail -n 1)
+acme_aid=$(kli aid --name "$acme_name" --alias acme)
+
+## Create Legal Entity credential
+
+kli oobi resolve --name "$acme_name" --oobi "$qvi_oobi"
+kli oobi resolve --name "$qvi_name" --oobi "$acme_oobi"
+
+
+schema_le_said="ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY" # Legal Entity credential schema
+
+kli oobi resolve --name "$qvi_name" --oobi "https://portal.globalvlei.com/oobi/$schema_le_said"
+kli oobi resolve --name "$acme_name" --oobi "https://portal.globalvlei.com/oobi/$schema_qvi_said"
+kli oobi resolve --name "$acme_name" --oobi "https://portal.globalvlei.com/oobi/$schema_le_said"
+
+LEI_ACME="456"
+kli vc registry incept --name "$qvi_name" --alias qvi --registry-name vlei
+kli vc create --name "$qvi_name" --alias qvi --registry-name vlei --schema "$schema_le_said" --recipient "$acme_aid" \
+  --data "{\"LEI\": \"$LEI_ACME\"}" \
+  --edges "{\"d\": \"\", \"qvi\": {\"n\": \"$qvi_credential_said\", \"s\": \"$schema_qvi_said\"}}" \
+  --rules '{"d": "EGZ97EjPSINR-O-KHDN_uw4fdrTxeuRXrqT5ZHHQJujQ",
+  "usageDisclaimer": { 
+    "l": "Usage of a valid, unexpired, and non-revoked vLEI Credential, as defined in the associated Ecosystem Governance Framework, does not assert that the Legal Entity is trustworthy, honest, reputable in its business dealings, safe to do business with, or compliant with any laws or that an implied or expressly intended purpose will be fulfilled."
+  },
+  "issuanceDisclaimer": {
+    "l": "All information in a valid, unexpired, and non-revoked vLEI Credential, as defined in the associated Ecosystem Governance Framework, is accurate as of the date the validation process was complete. The vLEI Credential has been issued to the legal entity or person named in the vLEI Credential as the subject; and the qualified vLEI Issuer exercised reasonable care to perform the validation process set forth in the vLEI Ecosystem Governance Framework."
+  }
+}'
+
+acme_credential_said=$(kli vc list --name "$qvi_name" --alias qvi --schema "$schema_le_said" --issued --said)
+
+kli ipex grant --name "$qvi_name" --alias qvi --recipient "$acme_aid" --said "$acme_credential_said"
+
+kli ipex list --name "$acme_name" --alias acme --poll
+grant_acme_said=$(kli ipex list --name "$acme_name" --alias acme --type grant --said | tail -n 1)
+kli ipex admit --name "$acme_name" --alias acme --said "$grant_acme_said"
+kli ipex list --name "$qvi_name" --alias qvi --poll
+
+
+### ACME Train conductor 
+
+acme_conductor_name="acme_conductor_${random_suffix}"
+kli init --name "$acme_conductor_name" --nopasscode
+
+kli oobi resolve --name "$acme_conductor_name" --oobi "$witness_url/oobi/$witness_aid"
+kli incept --name "$acme_conductor_name" --wit "$witness_aid" --icount 1 --ncount 1 --isith 1 --nsith 1 --transferable --alias acme_train_conductor --toad 1
+kli ends add  --name "$acme_conductor_name" --alias acme_train_conductor --role mailbox --eid "$witness_aid"
+
+
+acme_conductor_oobi=$(kli oobi generate --name "$acme_conductor_name" --alias acme_train_conductor --role witness | tail -n 1)
+acme_conductor_aid=$(kli aid --name "$acme_conductor_name" --alias acme_train_conductor)
+
+
+## Create Engagement Context Role credential for AMCE Train Conductor
+
+kli oobi resolve --name "$acme_name" --oobi "$acme_conductor_oobi"
+kli oobi resolve --name "$acme_conductor_name" --oobi "$acme_oobi"
+
+
+schema_ecr_said="EEy9PkikFcANV1l7EHukCeXqrzT1hNZjGlUk7wuMO5jw" # Engagement Context Role credential schema
+
+kli oobi resolve --name "$acme_name" --oobi "https://portal.globalvlei.com/oobi/$schema_ecr_said"
+kli oobi resolve --name "$acme_conductor_name" --oobi "https://portal.globalvlei.com/oobi/$schema_qvi_said"
+kli oobi resolve --name "$acme_conductor_name" --oobi "https://portal.globalvlei.com/oobi/$schema_le_said"
+kli oobi resolve --name "$acme_conductor_name" --oobi "https://portal.globalvlei.com/oobi/$schema_ecr_said"
+
+kli vc registry incept --name "$acme_name" --alias acme --registry-name vlei
+kli vc create --name "$acme_name" --alias acme --registry-name vlei --schema "$schema_ecr_said" --recipient "$acme_conductor_aid" --private \
+  --data "{\"LEI\": \"$LEI_ACME\", \"engagementContextRole\":\"Train Conductor\", \"personLegalName\": \"Wayne Obstructor\"}" \
+  --edges "{\"d\": \"\", \"le\": {\"n\": \"$acme_credential_said\", \"s\": \"$schema_le_said\"}}" \
+  --rules '{"d": "EIfq_m1DI2IQ1MgHhUl9sq3IQ_PJP9WQ1LhbMscngDCB",
+  "usageDisclaimer": {
+    "l": "Usage of a valid, unexpired, and non-revoked vLEI Credential, as defined in the associated Ecosystem Governance Framework, does not assert that the Legal Entity is trustworthy, honest, reputable in its business dealings, safe to do business with, or compliant with any laws or that an implied or expressly intended purpose will be fulfilled."
+  },
+  "issuanceDisclaimer": {
+    "l": "All information in a valid, unexpired, and non-revoked vLEI Credential, as defined in the associated Ecosystem Governance Framework, is accurate as of the date the validation process was complete. The vLEI Credential has been issued to the legal entity or person named in the vLEI Credential as the subject; and the qualified vLEI Issuer exercised reasonable care to perform the validation process set forth in the vLEI Ecosystem Governance Framework."
+  },
+  "privacyDisclaimer": {
+    "l": "It is the sole responsibility of Holders as Issuees of an ECR vLEI Credential to present that Credential in a privacy-preserving manner using the mechanisms provided in the Issuance and Presentation Exchange (IPEX) protocol specification and the Authentic Chained Data Container (ACDC) specification. https://github.com/WebOfTrust/IETF-IPEX and https://github.com/trustoverip/tswg-acdc-specification."
+  }
+}'
+
+
+acme_conductor_credential_said=$(kli vc list --name "$acme_name" --alias acme --schema "$schema_ecr_said" --issued --said)
+
+kli ipex grant --name "$acme_name" --alias acme --recipient "$acme_conductor_aid" --said "$acme_conductor_credential_said"
+
+kli ipex list --name "$acme_conductor_name" --alias acme_train_conductor --poll
+grant_acme_conductor_said=$(kli ipex list --name "$acme_conductor_name" --alias acme_train_conductor --type grant --said | tail -n 1)
+kli ipex admit --name "$acme_conductor_name" --alias acme_train_conductor --said "$grant_acme_conductor_said"
+kli ipex list --name "$acme_name" --alias acme --poll
+
