@@ -1,9 +1,29 @@
 # vLEI sandbox
 
-This is repo is for ...
+This repository can be used to create vLEI credentials for testing purposes.
 
-## Get a ECR credential
+## Prerequisite
 
-### API
+- Python 3.13
+- Docker
 
-### Local script
+## Getting Started
+
+Clone this repository.
+
+```
+git clone git@github.com:Global-vLEI/vlei-sandbox.git
+cd vlei-sandbox
+```
+
+Start the demo infrastructure
+
+```
+docker compose up -d
+```
+
+Run Engagement Context Role credential script
+
+```
+./scripts/ecr-credential.sh
+```
