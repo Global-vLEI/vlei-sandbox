@@ -11,10 +11,8 @@ then
     pip install keri==1.2.6
 fi
 
-
 random_suffix=$(openssl rand -base64 8 | tr -dc '[:alnum:]' | fold -w 8 | head -n 1)
 geda_name="geda_${random_suffix}"
-qvi_name="qvi_${random_suffix}"
 
 witness_url=${WITNESS_URL:-"http://localhost:5642"}
 witness_aid=$(curl -s -D - -o /dev/null "$witness_url/oobi" | grep Keri-Aid | cut -d ' ' -f 2 | tr -d '\r')
@@ -26,17 +24,17 @@ kli oobi resolve --name "$geda_name" --oobi "$witness_url/oobi/$witness_aid"
 kli incept --name "$geda_name" --wit "$witness_aid" --icount 1 --ncount 1 --isith 1 --nsith 1 --transferable --alias geda --toad 1
 kli ends add  --name "$geda_name" --alias geda --role mailbox --eid "$witness_aid"
 
-
 geda_oobi=$(kli oobi generate --name "$geda_name" --alias geda --role witness | tail -n 1)
 geda_aid=$(kli aid --name "$geda_name" --alias geda)
 
 ### Create QVI
+qvi_name="qvi_${random_suffix}"
 kli init --name "$qvi_name" --nopasscode
 kli oobi resolve --name "$qvi_name" --oobi "$witness_url/oobi/$witness_aid"
 kli incept --name "$qvi_name" --wit "$witness_aid" --icount 1 --ncount 1 --isith 1 --nsith 1 --transferable --alias qvi_proxy --toad 1
 
-
 kli oobi resolve --name "$qvi_name" --oobi "$geda_oobi"
+# Save the process id since this operation will not resolve until Gleif External AID has accepted the delegation
 kli incept --name "$qvi_name" --wit "$witness_aid" --icount 1 --ncount 1 --isith 1 --nsith 1 --transferable --alias qvi --toad 1 --delpre "$geda_aid" --proxy qvi_proxy &
 pids+=($!)
 
@@ -49,11 +47,10 @@ kli ends add  --name "$qvi_name" --alias qvi --role mailbox --eid "$witness_aid"
 qvi_oobi=$(kli oobi generate --name "$qvi_name" --alias qvi --role witness | tail -n 1)
 qvi_aid=$(kli aid --name "$qvi_name" --alias qvi)
 
-
-
 ### QVI Credential
 
-schema_qvi_said="EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao" # QVI credential schema
+# QVI credential schema
+schema_qvi_said="EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao"
 
 kli oobi resolve --name "$geda_name" --oobi "$qvi_oobi"
 
@@ -62,16 +59,20 @@ kli vc registry incept --name "$geda_name" --alias geda --registry-name vlei
 LEI_QVI="123"
 kli oobi resolve --name "$geda_name" --oobi "https://portal.globalvlei.com/oobi/$schema_qvi_said"
 kli oobi resolve --name "$qvi_name" --oobi "https://portal.globalvlei.com/oobi/$schema_qvi_said"
+# Create the QVI credential
 kli vc create --name "$geda_name" --alias geda --registry-name vlei --data "{\"LEI\": \"$LEI_QVI\"}" --schema "$schema_qvi_said" --recipient "$qvi_aid"
 
 qvi_credential_said=$(kli vc list --name "$geda_name" --alias geda --schema "$schema_qvi_said" --issued --said)
 
-
+# Grant the QVI credential
 kli ipex grant --name "$geda_name" --alias geda --recipient "$qvi_aid" --said "$qvi_credential_said"
 
+# Wait for the grant to be received
 kli ipex list --name "$qvi_name" --alias qvi --poll
 grant_qvi_said=$(kli ipex list --name "$qvi_name" --alias qvi --type grant --said | tail -n 1)
+# Admit the QVI credential
 kli ipex admit --name "$qvi_name" --alias qvi --said "$grant_qvi_said"
+# Wait for the QVI credential admittance to be received by GLEIF External
 kli ipex list --name "$geda_name" --alias geda --poll
 
 ### Legal Entity
@@ -83,7 +84,6 @@ kli oobi resolve --name "$acme_name" --oobi "$witness_url/oobi/$witness_aid"
 kli incept --name "$acme_name" --wit "$witness_aid" --icount 1 --ncount 1 --isith 1 --nsith 1 --transferable --alias acme --toad 1
 kli ends add  --name "$acme_name" --alias acme --role mailbox --eid "$witness_aid"
 
-
 acme_oobi=$(kli oobi generate --name "$acme_name" --alias acme --role witness | tail -n 1)
 acme_aid=$(kli aid --name "$acme_name" --alias acme)
 
@@ -92,8 +92,8 @@ acme_aid=$(kli aid --name "$acme_name" --alias acme)
 kli oobi resolve --name "$acme_name" --oobi "$qvi_oobi"
 kli oobi resolve --name "$qvi_name" --oobi "$acme_oobi"
 
-
-schema_le_said="ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY" # Legal Entity credential schema
+# Legal Entity credential schema
+schema_le_said="ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY"
 
 kli oobi resolve --name "$qvi_name" --oobi "https://portal.globalvlei.com/oobi/$schema_le_said"
 kli oobi resolve --name "$acme_name" --oobi "https://portal.globalvlei.com/oobi/$schema_qvi_said"
@@ -122,7 +122,6 @@ grant_acme_said=$(kli ipex list --name "$acme_name" --alias acme --type grant --
 kli ipex admit --name "$acme_name" --alias acme --said "$grant_acme_said"
 kli ipex list --name "$qvi_name" --alias qvi --poll
 
-
 ### ACME Train conductor 
 
 acme_conductor_name="acme_conductor_${random_suffix}"
@@ -132,18 +131,16 @@ kli oobi resolve --name "$acme_conductor_name" --oobi "$witness_url/oobi/$witnes
 kli incept --name "$acme_conductor_name" --wit "$witness_aid" --icount 1 --ncount 1 --isith 1 --nsith 1 --transferable --alias acme_train_conductor --toad 1
 kli ends add  --name "$acme_conductor_name" --alias acme_train_conductor --role mailbox --eid "$witness_aid"
 
-
 acme_conductor_oobi=$(kli oobi generate --name "$acme_conductor_name" --alias acme_train_conductor --role witness | tail -n 1)
 acme_conductor_aid=$(kli aid --name "$acme_conductor_name" --alias acme_train_conductor)
-
 
 ## Create Engagement Context Role credential for AMCE Train Conductor
 
 kli oobi resolve --name "$acme_name" --oobi "$acme_conductor_oobi"
 kli oobi resolve --name "$acme_conductor_name" --oobi "$acme_oobi"
 
-
-schema_ecr_said="EEy9PkikFcANV1l7EHukCeXqrzT1hNZjGlUk7wuMO5jw" # Engagement Context Role credential schema
+# Engagement Context Role credential schema
+schema_ecr_said="EEy9PkikFcANV1l7EHukCeXqrzT1hNZjGlUk7wuMO5jw"
 
 kli oobi resolve --name "$acme_name" --oobi "https://portal.globalvlei.com/oobi/$schema_ecr_said"
 kli oobi resolve --name "$acme_conductor_name" --oobi "https://portal.globalvlei.com/oobi/$schema_qvi_said"
@@ -166,7 +163,6 @@ kli vc create --name "$acme_name" --alias acme --registry-name vlei --schema "$s
   }
 }'
 
-
 acme_conductor_credential_said=$(kli vc list --name "$acme_name" --alias acme --schema "$schema_ecr_said" --issued --said)
 
 kli ipex grant --name "$acme_name" --alias acme --recipient "$acme_conductor_aid" --said "$acme_conductor_credential_said"
@@ -175,4 +171,3 @@ kli ipex list --name "$acme_conductor_name" --alias acme_train_conductor --poll
 grant_acme_conductor_said=$(kli ipex list --name "$acme_conductor_name" --alias acme_train_conductor --type grant --said | tail -n 1)
 kli ipex admit --name "$acme_conductor_name" --alias acme_train_conductor --said "$grant_acme_conductor_said"
 kli ipex list --name "$acme_name" --alias acme --poll
-
