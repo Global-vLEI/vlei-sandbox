@@ -8,7 +8,7 @@ if ! command -v kli &> /dev/null
 then
     python3.13 -m venv .venv
     source .venv/bin/activate
-    pip install keri==1.2.6
+    pip install -r requirements.txt
 fi
 
 random_suffix=$(openssl rand -base64 8 | tr -dc '[:alnum:]' | fold -w 8 | head -n 1)
