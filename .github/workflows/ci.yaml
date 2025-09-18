@@ -29,7 +29,8 @@ jobs:
 
       - name: Run tests
         run: |
-          ./scripts/ecr-credential.sh
+          ./scripts/create-ecr-credential.sh
+          ./scripts/create-legal-entity-aid.sh
 
       - name: Print logs
         if: ${{ always() }}

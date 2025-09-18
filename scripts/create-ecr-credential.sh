@@ -15,7 +15,6 @@ fi
 random_suffix=$(openssl rand -base64 8 | tr -dc '[:alnum:]' | fold -w 8 | head -n 1)
 geda_name="geda_${random_suffix}"
 
-
 ### Configure witness and schemas
 witness_url=${WITNESS_URL:-"http://localhost:5642"}
 schema_server_url=${SCHEMA_SERVER_URL:-"https://portal.globalvlei.com"}
