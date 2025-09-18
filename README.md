@@ -22,8 +22,15 @@ Start the demo infrastructure
 docker compose up -d
 ```
 
-Run Engagement Context Role credential script
+
+### Creating an ECR Credential
+
+Run [create-ecr-credential.sh](./scripts/create-ecr-credential.sh) to create a new Engagement Context Role Credential (ECR) for testing purposes.
 
 ```
-./scripts/ecr-credential.sh
+./scripts/create-ecr-credential.sh
 ```
+
+### Creating a Legal Entity AID (KERIpy)
+
+The Legal Entity AID is a multisig AID consisting of 2 or more Legal Entity Authorized Representatives (LARs) with signing authority. See [create-legal-entity-aid.sh](./scripts/create-legal-entity-aid.sh) for how to create one using KERIpy.

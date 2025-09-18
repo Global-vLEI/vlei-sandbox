@@ -180,3 +180,11 @@ kli ipex list --name "$acme_conductor_name" --alias acme_train_conductor --poll
 grant_acme_conductor_said=$(kli ipex list --name "$acme_conductor_name" --alias acme_train_conductor --type grant --said | tail -n 1)
 kli ipex admit --name "$acme_conductor_name" --alias acme_train_conductor --said "$grant_acme_conductor_said"
 kli ipex list --name "$acme_name" --alias acme --poll
+
+
+echo ""
+echo "Successfully created ECR credential for ACME Train Conductor"
+echo ""
+echo "To view the credential run: "
+echo ""
+echo "kli vc list --name $acme_conductor_name --alias acme_train_conductor"
