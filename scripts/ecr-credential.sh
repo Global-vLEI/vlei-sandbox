@@ -7,6 +7,7 @@ set -e
 if ! command -v kli &> /dev/null
 then
     python3.13 -m venv .venv
+    # shellcheck disable=SC1091
     source .venv/bin/activate
     pip install -r requirements.txt
 fi
@@ -40,7 +41,7 @@ pids+=($!)
 
 kli delegate confirm --name "$geda_name" --auto --alias geda  
 
-wait $pids
+wait "${pids[@]}"
 
 kli ends add  --name "$qvi_name" --alias qvi --role mailbox --eid "$witness_aid"
 
