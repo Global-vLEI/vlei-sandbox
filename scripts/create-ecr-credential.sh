@@ -54,6 +54,7 @@ geda_aid=$(kli aid --name "$geda_name" --alias geda)
 ### Create QVI
 qvi_name="qvi_${random_suffix}"
 kli init --name "$qvi_name" --config-file "$config_file" --nopasscode
+# Create a proxy AID for the creation for the delegated AID
 kli incept --name "$qvi_name" --wit "$witness_aid" --icount 1 --ncount 1 --isith 1 --nsith 1 --transferable --alias qvi_proxy --toad 1
 
 kli oobi resolve --name "$qvi_name" --oobi "$geda_oobi"
