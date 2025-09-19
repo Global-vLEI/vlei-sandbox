@@ -16,7 +16,7 @@ random_suffix=$(openssl rand -base64 8 | tr -dc '[:alnum:]' | fold -w 8 | head -
 
 ### Configure witness and schemas
 witness_url=${WITNESS_URL:-"http://localhost:5642"}
-witness_aid=$(curl -s -D - -o /dev/null "$witness_url/oobi" | grep Keri-Aid | cut -d ' ' -f 2 | tr -d '\r')
+witness_aid=$(curl -s -D - -o /dev/null "$witness_url/oobi" | grep -i Keri-Aid | cut -d ' ' -f 2 | tr -d '\r')
 keri_dir="$HOME/.keri" # TODO: If the user has access to /usr/local/var/keri/, that will be used by KERI instead
 mkdir -p "$keri_dir/cf"
 config_file="config_$random_suffix"
