@@ -15,13 +15,36 @@ fi
 random_suffix=$(openssl rand -base64 8 | tr -dc '[:alnum:]' | fold -w 8 | head -n 1)
 geda_name="geda_${random_suffix}"
 
+### Configure witness and schemas
 witness_url=${WITNESS_URL:-"http://localhost:5642"}
+schema_server_url=${SCHEMA_SERVER_URL:-"https://portal.globalvlei.com"}
 witness_aid=$(curl -s -D - -o /dev/null "$witness_url/oobi" | grep Keri-Aid | cut -d ' ' -f 2 | tr -d '\r')
+keri_dir="$HOME/.keri" # TODO: If the user has access to /usr/local/var/keri/, that will be used by KERI instead
+mkdir -p "$keri_dir/cf"
+config_file="config_$random_suffix"
+time=$(kli time)
+
+cat << EOF > "$keri_dir/cf/$config_file.json"
+{
+  "dt": "$time",
+  "iurls": [
+    "$witness_url/oobi/$witness_aid"
+  ],
+  "durls": [
+    "$schema_server_url/oobi/EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy",
+    "$schema_server_url/oobi/EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao",
+    "$schema_server_url/oobi/EEy9PkikFcANV1l7EHukCeXqrzT1hNZjGlUk7wuMO5jw",
+    "$schema_server_url/oobi/EH6ekLjSr8V32WyFbGe1zXjTzFs9PkTYmupJ9H65O14g",
+    "$schema_server_url/oobi/EKA57bKBKxr_kN7iN5i7lMUxpMG-s19dRcmov1iDxz-E",
+    "$schema_server_url/oobi/EMhvwOlyEJ9kN4PrwCpr9Jsv7TxPhiYveZ0oP3lJzdEi",
+    "$schema_server_url/oobi/ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY"
+  ]
+}
+EOF
 
 ### Create Gleif External AID
-kli init --name "$geda_name" --nopasscode
+kli init --name "$geda_name" --config-file "$config_file" --nopasscode
 
-kli oobi resolve --name "$geda_name" --oobi "$witness_url/oobi/$witness_aid"
 kli incept --name "$geda_name" --wit "$witness_aid" --icount 1 --ncount 1 --isith 1 --nsith 1 --transferable --alias geda --toad 1
 kli ends add  --name "$geda_name" --alias geda --role mailbox --eid "$witness_aid"
 
@@ -30,8 +53,7 @@ geda_aid=$(kli aid --name "$geda_name" --alias geda)
 
 ### Create QVI
 qvi_name="qvi_${random_suffix}"
-kli init --name "$qvi_name" --nopasscode
-kli oobi resolve --name "$qvi_name" --oobi "$witness_url/oobi/$witness_aid"
+kli init --name "$qvi_name" --config-file "$config_file" --nopasscode
 kli incept --name "$qvi_name" --wit "$witness_aid" --icount 1 --ncount 1 --isith 1 --nsith 1 --transferable --alias qvi_proxy --toad 1
 
 kli oobi resolve --name "$qvi_name" --oobi "$geda_oobi"
@@ -40,7 +62,6 @@ kli incept --name "$qvi_name" --wit "$witness_aid" --icount 1 --ncount 1 --isith
 pids+=($!)
 
 kli delegate confirm --name "$geda_name" --auto --alias geda  
-
 wait "${pids[@]}"
 
 kli ends add  --name "$qvi_name" --alias qvi --role mailbox --eid "$witness_aid"
@@ -58,8 +79,6 @@ kli oobi resolve --name "$geda_name" --oobi "$qvi_oobi"
 kli vc registry incept --name "$geda_name" --alias geda --registry-name vlei
 
 LEI_QVI="123"
-kli oobi resolve --name "$geda_name" --oobi "https://portal.globalvlei.com/oobi/$schema_qvi_said"
-kli oobi resolve --name "$qvi_name" --oobi "https://portal.globalvlei.com/oobi/$schema_qvi_said"
 # Create the QVI credential
 kli vc create --name "$geda_name" --alias geda --registry-name vlei --data "{\"LEI\": \"$LEI_QVI\"}" --schema "$schema_qvi_said" --recipient "$qvi_aid"
 
@@ -79,9 +98,8 @@ kli ipex list --name "$geda_name" --alias geda --poll
 ### Legal Entity
 
 acme_name="acme_${random_suffix}"
-kli init --name "$acme_name" --nopasscode
+kli init --name "$acme_name" --config-file "$config_file" --nopasscode
 
-kli oobi resolve --name "$acme_name" --oobi "$witness_url/oobi/$witness_aid"
 kli incept --name "$acme_name" --wit "$witness_aid" --icount 1 --ncount 1 --isith 1 --nsith 1 --transferable --alias acme --toad 1
 kli ends add  --name "$acme_name" --alias acme --role mailbox --eid "$witness_aid"
 
@@ -95,10 +113,6 @@ kli oobi resolve --name "$qvi_name" --oobi "$acme_oobi"
 
 # Legal Entity credential schema
 schema_le_said="ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY"
-
-kli oobi resolve --name "$qvi_name" --oobi "https://portal.globalvlei.com/oobi/$schema_le_said"
-kli oobi resolve --name "$acme_name" --oobi "https://portal.globalvlei.com/oobi/$schema_qvi_said"
-kli oobi resolve --name "$acme_name" --oobi "https://portal.globalvlei.com/oobi/$schema_le_said"
 
 LEI_ACME="456"
 kli vc registry incept --name "$qvi_name" --alias qvi --registry-name vlei
@@ -126,9 +140,8 @@ kli ipex list --name "$qvi_name" --alias qvi --poll
 ### ACME Train conductor 
 
 acme_conductor_name="acme_conductor_${random_suffix}"
-kli init --name "$acme_conductor_name" --nopasscode
+kli init --name "$acme_conductor_name" --config-file "$config_file" --nopasscode
 
-kli oobi resolve --name "$acme_conductor_name" --oobi "$witness_url/oobi/$witness_aid"
 kli incept --name "$acme_conductor_name" --wit "$witness_aid" --icount 1 --ncount 1 --isith 1 --nsith 1 --transferable --alias acme_train_conductor --toad 1
 kli ends add  --name "$acme_conductor_name" --alias acme_train_conductor --role mailbox --eid "$witness_aid"
 
@@ -142,11 +155,6 @@ kli oobi resolve --name "$acme_conductor_name" --oobi "$acme_oobi"
 
 # Engagement Context Role credential schema
 schema_ecr_said="EEy9PkikFcANV1l7EHukCeXqrzT1hNZjGlUk7wuMO5jw"
-
-kli oobi resolve --name "$acme_name" --oobi "https://portal.globalvlei.com/oobi/$schema_ecr_said"
-kli oobi resolve --name "$acme_conductor_name" --oobi "https://portal.globalvlei.com/oobi/$schema_qvi_said"
-kli oobi resolve --name "$acme_conductor_name" --oobi "https://portal.globalvlei.com/oobi/$schema_le_said"
-kli oobi resolve --name "$acme_conductor_name" --oobi "https://portal.globalvlei.com/oobi/$schema_ecr_said"
 
 kli vc registry incept --name "$acme_name" --alias acme --registry-name vlei
 kli vc create --name "$acme_name" --alias acme --registry-name vlei --schema "$schema_ecr_said" --recipient "$acme_conductor_aid" --private \
@@ -172,3 +180,11 @@ kli ipex list --name "$acme_conductor_name" --alias acme_train_conductor --poll
 grant_acme_conductor_said=$(kli ipex list --name "$acme_conductor_name" --alias acme_train_conductor --type grant --said | tail -n 1)
 kli ipex admit --name "$acme_conductor_name" --alias acme_train_conductor --said "$grant_acme_conductor_said"
 kli ipex list --name "$acme_name" --alias acme --poll
+
+
+echo ""
+echo "Successfully created ECR credential for ACME Train Conductor"
+echo ""
+echo "To view the credential run: "
+echo ""
+echo "kli vc list --name $acme_conductor_name --alias acme_train_conductor"
