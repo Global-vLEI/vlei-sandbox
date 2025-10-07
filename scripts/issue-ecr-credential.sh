@@ -17,7 +17,7 @@ geda_name="geda_${random_suffix}"
 
 ### Configure witness and schemas
 witness_url=${WITNESS_URL:-"http://localhost:5642"}
-schema_server_url=${SCHEMA_SERVER_URL:-"https://portal.globalvlei.com"}
+schema_server_url=${SCHEMA_SERVER_URL:-"https://weboftrust.github.io"}
 witness_aid=$(curl -s -D - -o /dev/null "$witness_url/oobi" | grep -i Keri-Aid | cut -d ' ' -f 2 | tr -d '\r')
 keri_dir="$HOME/.keri" # TODO: If the user has access to /usr/local/var/keri/, that will be used by KERI instead
 mkdir -p "$keri_dir/cf"
